@@ -2273,6 +2273,14 @@ type UpdateStorageCredential struct {
 	SkipValidation bool `json:"skip_validation,omitempty"`
 }
 
+// Update a table
+type UpdateTableRequest struct {
+	// Full name of the table.
+	FullName string `json:"-" url:"-"`
+
+	Owner string `json:"owner,omitempty"`
+}
+
 type UpdateVolumeRequestContent struct {
 	// The comment attached to the volume
 	Comment string `json:"comment,omitempty"`
