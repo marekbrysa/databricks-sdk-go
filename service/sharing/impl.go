@@ -170,6 +170,7 @@ func (a *sharesImpl) SharePermissions(ctx context.Context, request SharePermissi
 func (a *sharesImpl) Update(ctx context.Context, request UpdateShare) (*ShareInfo, error) {
 	var shareInfo ShareInfo
 	path := fmt.Sprintf("/api/2.1/unity-catalog/shares/%v", request.Name)
+	request.Name = ""
 	err := a.client.Do(ctx, http.MethodPatch, path, request, &shareInfo)
 	return &shareInfo, err
 }
