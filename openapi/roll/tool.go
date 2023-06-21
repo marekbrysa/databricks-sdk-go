@@ -14,9 +14,9 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func NewSuite(dirname string) (*suite, error) {
+func NewSuite(dirname string) (*Suite, error) {
 	fset := token.NewFileSet()
-	s := &suite{
+	s := &Suite{
 		fset:             fset,
 		ServiceToPackage: map[string]string{},
 	}
@@ -31,7 +31,7 @@ func NewSuite(dirname string) (*suite, error) {
 			// not transpilable
 			return nil
 		}
-		if strings.HasSuffix(path, "dbfs_test.go") {
+		if strings.HasSuffix(path, "files_test.go") {
 			// not transpilable
 			return nil
 		}
@@ -60,14 +60,14 @@ func NewSuite(dirname string) (*suite, error) {
 	return s, nil
 }
 
-type suite struct {
+type Suite struct {
 	fset             *token.FileSet
 	ServiceToPackage map[string]string
 	examples         []*example
 	counter          int
 }
 
-func (s *suite) parsePackages(filename, client string) error {
+func (s *Suite) parsePackages(filename, client string) error {
 	file, err := parser.ParseFile(s.fset, filename, nil, 0)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (s *suite) parsePackages(filename, client string) error {
 	return nil
 }
 
-func (s *suite) FullName() string {
+func (s *Suite) FullName() string {
 	return "suite"
 }
 
@@ -107,7 +107,7 @@ type methodRef struct {
 	Pacakge, Service, Method string
 }
 
-func (s *suite) Methods() []methodRef {
+func (s *Suite) Methods() []methodRef {
 	found := map[methodRef]bool{}
 	for _, ex := range s.examples {
 		for _, v := range ex.Calls {
@@ -134,7 +134,7 @@ func (s *suite) Methods() []methodRef {
 	return methods
 }
 
-func (s *suite) Samples() (out []*sample) {
+func (s *Suite) Samples() (out []*sample) {
 	for _, v := range s.Methods() {
 		out = append(out, s.usageSamples(v.Service, v.Method)...)
 	}
@@ -143,7 +143,7 @@ func (s *suite) Samples() (out []*sample) {
 
 type serviceExample struct {
 	code.Named
-	Suite   *suite
+	Suite   *Suite
 	Package string
 	Samples []*sample
 }
@@ -152,7 +152,7 @@ func (s *serviceExample) FullName() string {
 	return fmt.Sprintf("%s.%s", s.Package, s.PascalName())
 }
 
-func (s *suite) ServicesExamples() (out []*serviceExample) {
+func (s *Suite) ServicesExamples() (out []*serviceExample) {
 	samples := s.Samples()
 	for svc, pkg := range s.ServiceToPackage {
 		se := &serviceExample{
@@ -181,14 +181,14 @@ type sample struct {
 	Package string
 	Service *code.Named
 	Method  *code.Named
-	Suite   *suite
+	Suite   *Suite
 }
 
 func (sa *sample) FullName() string {
 	return fmt.Sprintf("%s.%s", sa.Service.PascalName(), sa.Method.CamelName())
 }
 
-func (s *suite) usageSamples(svc, mth string) (out []*sample) {
+func (s *Suite) usageSamples(svc, mth string) (out []*sample) {
 	svcName := &code.Named{
 		Name: svc,
 	}
@@ -235,8 +235,8 @@ func (s *suite) usageSamples(svc, mth string) (out []*sample) {
 						if callIds[v.id] {
 							continue
 						}
-						sa.Calls = append(sa.Calls, v)
-						callIds[v.id] = true
+						// put at the front of the queue
+						queue = append([]expression{v}, queue...)
 					}
 				}
 				x.IsAccount = ex.IsAccount
@@ -309,6 +309,10 @@ func (s *suite) usageSamples(svc, mth string) (out []*sample) {
 				callIds[c.id] = true
 			}
 		}
+		slices.SortFunc[*call](sa.Calls, func(a, b *call) bool {
+			x := a.IsDependentOn(b)
+			return x
+		})
 		reverse(sa.Calls)
 		reverse(sa.Cleanup)
 	}
@@ -321,7 +325,7 @@ func reverse[T any](s []T) {
 	}
 }
 
-func (s *suite) assignedNames(a *ast.AssignStmt) (names []string) {
+func (s *Suite) assignedNames(a *ast.AssignStmt) (names []string) {
 	for _, v := range a.Lhs {
 		ident, ok := v.(*ast.Ident)
 		if !ok {
@@ -332,7 +336,7 @@ func (s *suite) assignedNames(a *ast.AssignStmt) (names []string) {
 	return
 }
 
-func (s *suite) expectExamples(file *ast.File) {
+func (s *Suite) expectExamples(file *ast.File) {
 	for _, v := range file.Decls {
 		fn, ok := v.(*ast.FuncDecl)
 		if !ok {
@@ -353,7 +357,7 @@ func (s *suite) expectExamples(file *ast.File) {
 	}
 }
 
-func (s *suite) expectFn(fn *ast.FuncDecl, file *ast.File) *example {
+func (s *Suite) expectFn(fn *ast.FuncDecl, file *ast.File) *example {
 	testName := fn.Name.Name
 	testName = strings.TrimPrefix(testName, "TestAcc")
 	testName = strings.TrimPrefix(testName, "TestUcAcc")
@@ -400,9 +404,10 @@ var ignoreFns = map[string]bool{
 	"Lock":    true,
 	"Errorf":  true,
 	"Skipf":   true,
+	"Log":     true,
 }
 
-func (s *suite) expectCleanup(ex *example, ce *ast.CallExpr) bool {
+func (s *Suite) expectCleanup(ex *example, ce *ast.CallExpr) bool {
 	se, ok := ce.Fun.(*ast.SelectorExpr)
 	if !ok || se.Sel.Name != "Cleanup" {
 		return false
@@ -428,7 +433,7 @@ func (s *suite) expectCleanup(ex *example, ce *ast.CallExpr) bool {
 	return true
 }
 
-func (s *suite) expectExprStmt(ex *example, stmt *ast.ExprStmt) {
+func (s *Suite) expectExprStmt(ex *example, stmt *ast.ExprStmt) {
 	ce, ok := stmt.X.(*ast.CallExpr)
 	if !ok {
 		return
@@ -469,7 +474,7 @@ func (s *suite) expectExprStmt(ex *example, stmt *ast.ExprStmt) {
 	}
 }
 
-func (s *suite) expectAssign(ex *example, stmt *ast.AssignStmt, hint string) {
+func (s *Suite) expectAssign(ex *example, stmt *ast.AssignStmt, hint string) {
 	names := s.assignedNames(stmt)
 	if len(names) == 2 && names[0] == "ctx" {
 		// w - workspace, a - account
@@ -500,7 +505,7 @@ func (s *suite) expectAssign(ex *example, stmt *ast.AssignStmt, hint string) {
 	}
 }
 
-func (s *suite) expectAssignCall(stmt *ast.AssignStmt) *call {
+func (s *Suite) expectAssignCall(stmt *ast.AssignStmt) *call {
 	names := s.assignedNames(stmt)
 	c := s.expectCall(stmt.Rhs[0])
 	if len(names) == 1 && names[0] != "err" {
@@ -516,7 +521,7 @@ func (s *suite) expectAssignCall(stmt *ast.AssignStmt) *call {
 	return c
 }
 
-func (s *suite) expectIdent(e ast.Expr) string {
+func (s *Suite) expectIdent(e ast.Expr) string {
 	ident, ok := e.(*ast.Ident)
 	if !ok {
 		s.explainAndPanic("ident", e)
@@ -525,7 +530,7 @@ func (s *suite) expectIdent(e ast.Expr) string {
 	return ident.Name
 }
 
-func (s *suite) expectEntity(t *ast.SelectorExpr, cl *ast.CompositeLit) *entity {
+func (s *Suite) expectEntity(t *ast.SelectorExpr, cl *ast.CompositeLit) *entity {
 	ent := &entity{}
 	ent.Name = t.Sel.Name
 	ent.Package = s.expectIdent(t.X)
@@ -533,7 +538,7 @@ func (s *suite) expectEntity(t *ast.SelectorExpr, cl *ast.CompositeLit) *entity 
 	return ent
 }
 
-func (s *suite) expectFieldValues(exprs []ast.Expr) (fvs []*fieldValue) {
+func (s *Suite) expectFieldValues(exprs []ast.Expr) (fvs []*fieldValue) {
 	for _, v := range exprs {
 		switch kv := v.(type) {
 		case *ast.KeyValueExpr:
@@ -551,7 +556,7 @@ func (s *suite) expectFieldValues(exprs []ast.Expr) (fvs []*fieldValue) {
 	return fvs
 }
 
-func (s *suite) expectArray(t *ast.ArrayType, cl *ast.CompositeLit) *array {
+func (s *Suite) expectArray(t *ast.ArrayType, cl *ast.CompositeLit) *array {
 	arr := &array{}
 	switch elt := t.Elt.(type) {
 	case *ast.SelectorExpr:
@@ -580,7 +585,7 @@ func (s *suite) expectArray(t *ast.ArrayType, cl *ast.CompositeLit) *array {
 	return arr
 }
 
-func (s *suite) expectMap(t *ast.MapType, cl *ast.CompositeLit) *mapLiteral {
+func (s *Suite) expectMap(t *ast.MapType, cl *ast.CompositeLit) *mapLiteral {
 	m := &mapLiteral{
 		KeyType:   s.expectIdent(t.Key),
 		ValueType: s.expectIdent(t.Value),
@@ -598,7 +603,7 @@ func (s *suite) expectMap(t *ast.MapType, cl *ast.CompositeLit) *mapLiteral {
 	return m
 }
 
-func (s *suite) expectPrimitive(x *ast.BasicLit) expression {
+func (s *Suite) expectPrimitive(x *ast.BasicLit) expression {
 	// we directly translate literal values
 	if x.Value[0] == '`' {
 		txt := x.Value[1 : len(x.Value)-1]
@@ -609,7 +614,7 @@ func (s *suite) expectPrimitive(x *ast.BasicLit) expression {
 	return &literal{x.Value}
 }
 
-func (s *suite) expectCompositeLiteral(x *ast.CompositeLit) expression {
+func (s *Suite) expectCompositeLiteral(x *ast.CompositeLit) expression {
 	switch t := x.Type.(type) {
 	case *ast.SelectorExpr:
 		return s.expectEntity(t, x)
@@ -623,7 +628,7 @@ func (s *suite) expectCompositeLiteral(x *ast.CompositeLit) expression {
 	}
 }
 
-func (s *suite) expectExpr(e ast.Expr) expression {
+func (s *Suite) expectExpr(e ast.Expr) expression {
 	switch x := e.(type) {
 	case *ast.BasicLit:
 		return s.expectPrimitive(x)
@@ -670,12 +675,12 @@ func (s *suite) expectExpr(e ast.Expr) expression {
 	}
 }
 
-func (s *suite) explainAndPanic(expected string, x any) any {
+func (s *Suite) explainAndPanic(expected string, x any) any {
 	ast.Print(s.fset, x)
 	panic("expected " + expected)
 }
 
-func (s *suite) expectLookup(se *ast.SelectorExpr) *lookup {
+func (s *Suite) expectLookup(se *ast.SelectorExpr) *lookup {
 	return &lookup{
 		X: s.expectExpr(se.X),
 		Field: &code.Named{
@@ -684,7 +689,7 @@ func (s *suite) expectLookup(se *ast.SelectorExpr) *lookup {
 	}
 }
 
-func (s *suite) expectCall(e ast.Expr) *call {
+func (s *Suite) expectCall(e ast.Expr) *call {
 	ce, ok := e.(*ast.CallExpr)
 	if !ok {
 		s.explainAndPanic("call expr", e)
@@ -712,6 +717,10 @@ func (s *suite) expectCall(e ast.Expr) *call {
 			s.explainAndPanic("selector expr", se)
 			return nil
 		}
+	}
+	if c.Service != nil && c.Service.Name == "fmt" {
+		// fmt.Sprintf is not a service
+		c.Service = nil
 	}
 	for _, v := range ce.Args {
 		arg := s.expectExpr(v)

@@ -82,6 +82,15 @@ type lookup struct {
 	Field *code.Named
 }
 
+func (l *lookup) Variable() string {
+	switch x := l.X.(type) {
+	case *variable:
+		return x.Name
+	default:
+		return ""
+	}
+}
+
 func (l *lookup) Traverse(cb func(expression)) {
 	cb(l.X)
 	if t, ok := l.X.(traversable); ok {
@@ -184,6 +193,24 @@ type call struct {
 
 	// hint about the call creating an entity behind the variable
 	creates string
+}
+
+func (c *call) IsDependentOn(other *call) bool {
+	if other.Assign == nil {
+		return false
+	}
+	result := []bool{false}
+	c.Traverse(func(e expression) {
+		v, ok := e.(*variable)
+		if !ok {
+			return
+		}
+		if other.Assign.CamelName() == v.CamelName() {
+			result[0] = true
+			return
+		}
+	})
+	return result[0]
 }
 
 func (c *call) IsWait() bool {

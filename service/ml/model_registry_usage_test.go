@@ -75,7 +75,7 @@ func ExampleModelRegistryAPI_CreateModel_models() {
 
 }
 
-func ExampleModelRegistryAPI_CreateModel_modelVersionComments() {
+func ExampleModelRegistryAPI_CreateModel_modelVersions() {
 	ctx := context.Background()
 	w, err := databricks.NewWorkspaceClient()
 	if err != nil {
@@ -92,7 +92,7 @@ func ExampleModelRegistryAPI_CreateModel_modelVersionComments() {
 
 }
 
-func ExampleModelRegistryAPI_CreateModel_modelVersions() {
+func ExampleModelRegistryAPI_CreateModel_modelVersionComments() {
 	ctx := context.Background()
 	w, err := databricks.NewWorkspaceClient()
 	if err != nil {
@@ -188,6 +188,31 @@ func ExampleModelRegistryAPI_CreateWebhook_registryWebhooks() {
 	if err != nil {
 		panic(err)
 	}
+
+}
+
+func ExampleModelRegistryAPI_GetModel_models() {
+	ctx := context.Background()
+	w, err := databricks.NewWorkspaceClient()
+	if err != nil {
+		panic(err)
+	}
+
+	created, err := w.ModelRegistry.CreateModel(ctx, ml.CreateModelRequest{
+		Name: fmt.Sprintf("sdk-%x", time.Now().UnixNano()),
+	})
+	if err != nil {
+		panic(err)
+	}
+	logger.Infof(ctx, "found %v", created)
+
+	model, err := w.ModelRegistry.GetModel(ctx, ml.GetModelRequest{
+		Name: created.RegisteredModel.Name,
+	})
+	if err != nil {
+		panic(err)
+	}
+	logger.Infof(ctx, "found %v", model)
 
 }
 
@@ -289,8 +314,16 @@ func ExampleModelRegistryAPI_UpdateModel_models() {
 	}
 	logger.Infof(ctx, "found %v", created)
 
+	model, err := w.ModelRegistry.GetModel(ctx, ml.GetModelRequest{
+		Name: created.RegisteredModel.Name,
+	})
+	if err != nil {
+		panic(err)
+	}
+	logger.Infof(ctx, "found %v", model)
+
 	err = w.ModelRegistry.UpdateModel(ctx, ml.UpdateModelRequest{
-		Name:        created.RegisteredModel.Name,
+		Name:        model.RegisteredModelDatabricks.Name,
 		Description: fmt.Sprintf("sdk-%x", time.Now().UnixNano()),
 	})
 	if err != nil {

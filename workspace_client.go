@@ -23,6 +23,14 @@ import (
 type WorkspaceClient struct {
 	Config *config.Config
 
+	Files *files.FilesAPI
+
+	// These APIs manage access rules on resources in an account. Currently,
+	// only grant rules are supported. A grant rule specifies a role assigned to
+	// a set of principals. A list of rules attached to a resource is called a
+	// rule set. A workspace must belong to an account for these APIs to work.
+	AccountAccessControlProxy *iam.AccountAccessControlProxyAPI
+
 	// The alerts API can be used to perform CRUD operations on alerts. An alert
 	// is a Databricks SQL object that periodically runs a query, evaluates a
 	// condition of its result, and notifies one or more users and/or
@@ -96,8 +104,9 @@ type WorkspaceClient struct {
 	// days, an administrator can pin a cluster to the cluster list.
 	Clusters *compute.ClustersAPI
 
-	// This API allows executing commands on running clusters.
-	CommandExecutor compute.CommandExecutor
+	// This API allows execution of Python, Scala, SQL, or R commands on running
+	// Databricks Clusters.
+	CommandExecution *compute.CommandExecutionAPI
 
 	// Connections allow for creating a connection to an external data source.
 	//
@@ -774,58 +783,61 @@ func NewWorkspaceClient(c ...*Config) (*WorkspaceClient, error) {
 		return nil, err
 	}
 	return &WorkspaceClient{
-		Config:              cfg,
-		Alerts:              sql.NewAlerts(apiClient),
-		Catalogs:            catalog.NewCatalogs(apiClient),
-		ClusterPolicies:     compute.NewClusterPolicies(apiClient),
-		Clusters:            compute.NewClusters(apiClient),
-		CommandExecutor:     compute.NewCommandExecutor(apiClient),
-		Connections:         catalog.NewConnections(apiClient),
-		CurrentUser:         iam.NewCurrentUser(apiClient),
-		Dashboards:          sql.NewDashboards(apiClient),
-		DataSources:         sql.NewDataSources(apiClient),
-		Dbfs:                files.NewDbfs(apiClient),
-		DbsqlPermissions:    sql.NewDbsqlPermissions(apiClient),
-		Experiments:         ml.NewExperiments(apiClient),
-		ExternalLocations:   catalog.NewExternalLocations(apiClient),
-		Functions:           catalog.NewFunctions(apiClient),
-		GitCredentials:      workspace.NewGitCredentials(apiClient),
-		GlobalInitScripts:   compute.NewGlobalInitScripts(apiClient),
-		Grants:              catalog.NewGrants(apiClient),
-		Groups:              iam.NewGroups(apiClient),
-		InstancePools:       compute.NewInstancePools(apiClient),
-		InstanceProfiles:    compute.NewInstanceProfiles(apiClient),
-		IpAccessLists:       settings.NewIpAccessLists(apiClient),
-		Jobs:                jobs.NewJobs(apiClient),
-		Libraries:           compute.NewLibraries(apiClient),
-		Metastores:          catalog.NewMetastores(apiClient),
-		ModelRegistry:       ml.NewModelRegistry(apiClient),
-		Permissions:         iam.NewPermissions(apiClient),
-		Pipelines:           pipelines.NewPipelines(apiClient),
-		PolicyFamilies:      compute.NewPolicyFamilies(apiClient),
-		Providers:           sharing.NewProviders(apiClient),
-		Queries:             sql.NewQueries(apiClient),
-		QueryHistory:        sql.NewQueryHistory(apiClient),
-		RecipientActivation: sharing.NewRecipientActivation(apiClient),
-		Recipients:          sharing.NewRecipients(apiClient),
-		Repos:               workspace.NewRepos(apiClient),
-		Schemas:             catalog.NewSchemas(apiClient),
-		Secrets:             workspace.NewSecrets(apiClient),
-		ServicePrincipals:   iam.NewServicePrincipals(apiClient),
-		ServingEndpoints:    serving.NewServingEndpoints(apiClient),
-		Shares:              sharing.NewShares(apiClient),
-		StatementExecution:  sql.NewStatementExecution(apiClient),
-		StorageCredentials:  catalog.NewStorageCredentials(apiClient),
-		SystemSchemas:       catalog.NewSystemSchemas(apiClient),
-		TableConstraints:    catalog.NewTableConstraints(apiClient),
-		Tables:              catalog.NewTables(apiClient),
-		TokenManagement:     settings.NewTokenManagement(apiClient),
-		Tokens:              settings.NewTokens(apiClient),
-		Users:               iam.NewUsers(apiClient),
-		Volumes:             catalog.NewVolumes(apiClient),
-		Warehouses:          sql.NewWarehouses(apiClient),
-		Workspace:           workspace.NewWorkspace(apiClient),
-		WorkspaceBindings:   catalog.NewWorkspaceBindings(apiClient),
-		WorkspaceConf:       settings.NewWorkspaceConf(apiClient),
+		Config: cfg,
+		Files:  files.NewFiles(apiClient),
+
+		AccountAccessControlProxy: iam.NewAccountAccessControlProxy(apiClient),
+		Alerts:                    sql.NewAlerts(apiClient),
+		Catalogs:                  catalog.NewCatalogs(apiClient),
+		ClusterPolicies:           compute.NewClusterPolicies(apiClient),
+		Clusters:                  compute.NewClusters(apiClient),
+		CommandExecution:          compute.NewCommandExecution(apiClient),
+		Connections:               catalog.NewConnections(apiClient),
+		CurrentUser:               iam.NewCurrentUser(apiClient),
+		Dashboards:                sql.NewDashboards(apiClient),
+		DataSources:               sql.NewDataSources(apiClient),
+		Dbfs:                      files.NewDbfs(apiClient),
+		DbsqlPermissions:          sql.NewDbsqlPermissions(apiClient),
+		Experiments:               ml.NewExperiments(apiClient),
+		ExternalLocations:         catalog.NewExternalLocations(apiClient),
+		Functions:                 catalog.NewFunctions(apiClient),
+		GitCredentials:            workspace.NewGitCredentials(apiClient),
+		GlobalInitScripts:         compute.NewGlobalInitScripts(apiClient),
+		Grants:                    catalog.NewGrants(apiClient),
+		Groups:                    iam.NewGroups(apiClient),
+		InstancePools:             compute.NewInstancePools(apiClient),
+		InstanceProfiles:          compute.NewInstanceProfiles(apiClient),
+		IpAccessLists:             settings.NewIpAccessLists(apiClient),
+		Jobs:                      jobs.NewJobs(apiClient),
+		Libraries:                 compute.NewLibraries(apiClient),
+		Metastores:                catalog.NewMetastores(apiClient),
+		ModelRegistry:             ml.NewModelRegistry(apiClient),
+		Permissions:               iam.NewPermissions(apiClient),
+		Pipelines:                 pipelines.NewPipelines(apiClient),
+		PolicyFamilies:            compute.NewPolicyFamilies(apiClient),
+		Providers:                 sharing.NewProviders(apiClient),
+		Queries:                   sql.NewQueries(apiClient),
+		QueryHistory:              sql.NewQueryHistory(apiClient),
+		RecipientActivation:       sharing.NewRecipientActivation(apiClient),
+		Recipients:                sharing.NewRecipients(apiClient),
+		Repos:                     workspace.NewRepos(apiClient),
+		Schemas:                   catalog.NewSchemas(apiClient),
+		Secrets:                   workspace.NewSecrets(apiClient),
+		ServicePrincipals:         iam.NewServicePrincipals(apiClient),
+		ServingEndpoints:          serving.NewServingEndpoints(apiClient),
+		Shares:                    sharing.NewShares(apiClient),
+		StatementExecution:        sql.NewStatementExecution(apiClient),
+		StorageCredentials:        catalog.NewStorageCredentials(apiClient),
+		SystemSchemas:             catalog.NewSystemSchemas(apiClient),
+		TableConstraints:          catalog.NewTableConstraints(apiClient),
+		Tables:                    catalog.NewTables(apiClient),
+		TokenManagement:           settings.NewTokenManagement(apiClient),
+		Tokens:                    settings.NewTokens(apiClient),
+		Users:                     iam.NewUsers(apiClient),
+		Volumes:                   catalog.NewVolumes(apiClient),
+		Warehouses:                sql.NewWarehouses(apiClient),
+		Workspace:                 workspace.NewWorkspace(apiClient),
+		WorkspaceBindings:         catalog.NewWorkspaceBindings(apiClient),
+		WorkspaceConf:             settings.NewWorkspaceConf(apiClient),
 	}, nil
 }

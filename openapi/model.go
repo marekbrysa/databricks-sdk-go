@@ -9,9 +9,9 @@ import (
 )
 
 type Node struct {
-	Description  string `json:"description,omitempty"`
-	Availability string `json:"x-databricks-availability,omitempty"`
-	Ref          string `json:"$ref,omitempty"`
+	Description string `json:"description,omitempty"`
+	Preview     string `json:"x-databricks-preview,omitempty"`
+	Ref         string `json:"$ref,omitempty"`
 }
 
 // IsRef flags object being a reference to a component
@@ -47,10 +47,11 @@ type Specification struct {
 
 type Tag struct {
 	Node
-	Package   string `json:"x-databricks-package"`
-	PathStyle string `json:"x-databricks-path-style"`
-	Service   string `json:"x-databricks-service"`
-	Name      string `json:"name"`
+	Package    string `json:"x-databricks-package"`
+	PathStyle  string `json:"x-databricks-path-style"`
+	Service    string `json:"x-databricks-service"`
+	IsAccounts bool   `json:"x-databricks-is-accounts"`
+	Name       string `json:"name"`
 }
 
 type Path struct {
@@ -91,6 +92,7 @@ type Operation struct {
 	Pagination  *Pagination      `json:"x-databricks-pagination,omitempty"`
 	Shortcut    bool             `json:"x-databricks-shortcut,omitempty"`
 	Crud        string           `json:"x-databricks-crud,omitempty"`
+	JsonOnly    bool             `json:"x-databricks-cli-json-only,omitempty"`
 	Summary     string           `json:"summary,omitempty"`
 	OperationId string           `json:"operationId"`
 	Tags        []string         `json:"tags"`

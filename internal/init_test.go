@@ -15,6 +15,7 @@ import (
 
 	"github.com/databricks/databricks-sdk-go"
 	"github.com/databricks/databricks-sdk-go/config"
+	"github.com/databricks/databricks-sdk-go/logger"
 )
 
 const fullCharset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -22,6 +23,9 @@ const hexCharset = "0123456789abcdef"
 
 func init() {
 	databricks.WithProduct("integration-tests", databricks.Version())
+	logger.DefaultLogger = &logger.SimpleLogger{
+		Level: logger.LevelDebug,
+	}
 }
 
 // prelude for all workspace-level tests
@@ -51,6 +55,26 @@ func ucwsTest(t *testing.T) (context.Context, *databricks.WorkspaceClient) {
 // prelude for all account-level tests
 func accountTest(t *testing.T) (context.Context, *databricks.AccountClient) {
 	loadDebugEnvIfRunsFromIDE(t, "account")
+	cfg := &config.Config{
+		AccountID: GetEnvOrSkipTest(t, "DATABRICKS_ACCOUNT_ID"),
+	}
+	err := cfg.EnsureResolved()
+	if err != nil {
+		skipf(t)("error: %s", err)
+	}
+	if !cfg.IsAccountClient() {
+		skipf(t)("Not in account env: %s/%s", cfg.AccountID, cfg.Host)
+	}
+	t.Log(GetEnvOrSkipTest(t, "CLOUD_ENV"))
+	t.Parallel()
+	ctx := context.Background()
+	return ctx, databricks.Must(databricks.NewAccountClient(
+		(*databricks.Config)(cfg)))
+}
+
+// prelude for all UC account-level tests
+func ucacctTest(t *testing.T) (context.Context, *databricks.AccountClient) {
+	loadDebugEnvIfRunsFromIDE(t, "ucacct")
 	cfg := &config.Config{
 		AccountID: GetEnvOrSkipTest(t, "DATABRICKS_ACCOUNT_ID"),
 	}
