@@ -2014,7 +2014,8 @@ type SqlTask struct {
 	// If dashboard, indicates that this job must refresh a SQL dashboard.
 	Dashboard *SqlTaskDashboard `json:"dashboard,omitempty"`
 	// If file, indicates that this job runs a SQL file in a remote Git
-	// repository.
+	// repository. Only one SQL statement is supported in a file. Multiple SQL
+	// statements separated by semicolons (;) are not permitted.
 	File *SqlTaskFile `json:"file,omitempty"`
 	// Parameters to be used for each run of this job. The SQL alert task does
 	// not support custom parameters.
@@ -2239,13 +2240,19 @@ func (f *TriggerType) Type() string {
 
 type UpdateJob struct {
 	// Remove top-level fields in the job settings. Removing nested fields is
-	// not supported. This field is optional.
+	// not supported, except for tasks and job clusters (`tasks/task_1`). This
+	// field is optional.
 	FieldsToRemove []string `json:"fields_to_remove,omitempty"`
 	// The canonical identifier of the job to update. This field is required.
 	JobId int64 `json:"job_id"`
-	// The new settings for the job. Any top-level fields specified in
-	// `new_settings` are completely replaced. Partially updating nested fields
-	// is not supported.
+	// The new settings for the job.
+	//
+	// Top-level fields specified in `new_settings` are completely replaced,
+	// except for arrays which are merged. That is, new and existing entries are
+	// completely replaced based on the respective key fields, i.e. `task_key`
+	// or `job_cluster_key`, while previous entries are kept.
+	//
+	// Partially updating nested fields is not supported.
 	//
 	// Changes to the field `JobSettings.timeout_seconds` are applied to active
 	// runs. Changes to other fields are applied to future runs only.

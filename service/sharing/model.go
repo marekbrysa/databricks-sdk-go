@@ -512,6 +512,8 @@ type SharedDataObject struct {
 	Comment string `json:"comment,omitempty"`
 	// The type of the data object.
 	DataObjectType string `json:"data_object_type,omitempty"`
+	// ENABLED or DISABLED
+	HistoryDataSharingStatus string `json:"history_data_sharing_status,omitempty"`
 	// A fully qualified name that uniquely identifies a data object.
 	//
 	// For example, a table's fully qualified name is in the format of

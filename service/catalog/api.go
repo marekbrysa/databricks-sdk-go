@@ -1501,7 +1501,7 @@ func (a *SystemSchemasAPI) Disable(ctx context.Context, request DisableRequest) 
 //
 // Disables the system schema and removes it from the system catalog. The caller
 // must be an account admin or a metastore admin.
-func (a *SystemSchemasAPI) DisableByMetastoreIdAndSchemaName(ctx context.Context, metastoreId string, schemaName string) error {
+func (a *SystemSchemasAPI) DisableByMetastoreIdAndSchemaName(ctx context.Context, metastoreId string, schemaName DisableSchemaName) error {
 	return a.impl.Disable(ctx, DisableRequest{
 		MetastoreId: metastoreId,
 		SchemaName:  schemaName,
@@ -1512,8 +1512,8 @@ func (a *SystemSchemasAPI) DisableByMetastoreIdAndSchemaName(ctx context.Context
 //
 // Enables the system schema and adds it to the system catalog. The caller must
 // be an account admin or a metastore admin.
-func (a *SystemSchemasAPI) Enable(ctx context.Context) error {
-	return a.impl.Enable(ctx)
+func (a *SystemSchemasAPI) Enable(ctx context.Context, request EnableRequest) error {
+	return a.impl.Enable(ctx, request)
 }
 
 // List system schemas.
@@ -1835,11 +1835,11 @@ func (a *TablesAPI) ListSummariesAll(ctx context.Context, request ListSummariesR
 
 // Update a table.
 //
-// Change owner of table. The caller must be the owner of the parent catalog,
-// have the **USE_CATALOG** privilege on the parent catalog and be the owner of
-// the parent schema, or be the owner of the table and have the **USE_CATALOG**
-// privilege on the parent catalog and the **USE_SCHEMA** privilege on the
-// parent schema.
+// Change the owner of the table. The caller must be the owner of the parent
+// catalog, have the **USE_CATALOG** privilege on the parent catalog and be the
+// owner of the parent schema, or be the owner of the table and have the
+// **USE_CATALOG** privilege on the parent catalog and the **USE_SCHEMA**
+// privilege on the parent schema.
 func (a *TablesAPI) Update(ctx context.Context, request UpdateTableRequest) error {
 	return a.impl.Update(ctx, request)
 }
